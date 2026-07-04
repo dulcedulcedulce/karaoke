@@ -29,11 +29,11 @@
 <div class="container">
     <div class="header">
         <div class="logo">Karaokê Party Box</div>
-        <div class="subtitle">Catálogo Digital Oficial (.txt)</div>
+        <div class="subtitle">Catálogo Digital Oficial v2</div>
     </div>
     
     <div class="search-box">
-        <input type="text" id="search-input" placeholder="A carregar o catálogo de texto..." disabled>
+        <input type="text" id="search-input" placeholder="A carregar o catálogo..." disabled>
     </div>
     <div id="status-load" class="status">A preparar o sistema...</div>
 
@@ -45,34 +45,43 @@
 <script>
     let catalogoMusicas = [];
 
-    // Carrega e processa o ficheiro TXT original
     async function carregarCatalogoTXT() {
         const statusLoad = document.getElementById('status-load');
         const searchInput = document.getElementById('search-input');
         const container = document.getElementById('results-container');
 
         try {
-            // Procura o ficheiro de texto na mesma pasta
             const resposta = await fetch('CATÁLOGO DE MÚSICAS.txt');
             if (!resposta.ok) throw new Error("Ficheiro não encontrado");
             
             const textoCompleto = await resposta.text();
-            
-            // Divide o texto por quebras de linha
             const linhas = textoCompleto.split(/\r?\n/);
             
-            // Processa o padrão do seu ficheiro (uma linha número, próxima linha o item)
             for (let i = 0; i < linhas.length; i++) {
                 let linhaAtual = linhas[i].trim();
-                
-                // Verifica se a linha atual é apenas um número
-                if (/^\d+$/.test(linhaAtual)) {
+                if (linhaAtual === "" || linhaAtual.includes("CATÁLOGO DE MÚSICAS")) continue;
+
+                // FORMATO 1: Número e Música na MESMA linha (Ex: "12222 ZÉ RAMALHO - MISTÉRIOS...")
+                let regexMesmaLinha = /^(\d+)\s+(.+)$/;
+                let match = linhaAtual.match(regexMesmaLinha);
+
+                if (match) {
+                    catalogoMusicas.push({ 
+                        numero: match[1], 
+                        item: match[2].replace(/^["']|["']$/g, '').trim() 
+                    });
+                } 
+                // FORMATO 2: Número numa linha e Música na OUTRA linha
+                else if (/^\d+$/.test(linhaAtual)) {
                     let numero = linhaAtual;
-                    let item = (linhas[i + 1] || "").trim();
+                    let proximaLinha = (linhas[i + 1] || "").trim();
                     
-                    if (item !== "") {
-                        catalogoMusicas.push({ numero: numero, item: item });
-                        i++; // Salta a próxima linha porque já a usamos como o nome da música
+                    if (proximaLinha !== "" && !/^\d+$/.test(proximaLinha)) {
+                        catalogoMusicas.push({ 
+                            numero: numero, 
+                            item: proximaLinha.replace(/^["']|["']$/g, '').trim() 
+                        });
+                        i++; // Pula a próxima linha já consumida
                     }
                 }
             }
@@ -84,7 +93,7 @@
             searchInput.focus();
         } catch (erro) {
             statusLoad.textContent = "Erro ao carregar o catálogo.";
-            container.innerHTML = `<div class="no-results" style="color:#ef4444;">Erro crítico: Certifique-se de que o ficheiro 'CATÁLOGO DE MÚSICAS.txt' está na mesma pasta.</div>`;
+            container.innerHTML = `<div class="no-results" style="color:#ef4444;">Erro: Certifique-se de que o ficheiro 'CATÁLOGO DE MÚSICAS.txt' está correto.</div>`;
             console.error(erro);
         }
     }
@@ -100,13 +109,11 @@
             return;
         }
 
-        // Filtro otimizado para pesquisar no texto ou correspondência exata do número
         const resultados = catalogoMusicas.filter(musica => 
             musica.item.toLowerCase().includes(input) || musica.numero === input
         );
 
-        // Limita a exibição visual aos primeiros 80 resultados para manter a performance fluida no telemóvel
-        const limiteResultados = resultados.slice(0, 80);
+        const limiteResultados = resultados.slice(0, 100);
 
         if (limiteResultados.length > 0) {
             let htmlGerado = "";
@@ -121,8 +128,8 @@
                 `;
             });
             
-            if (resultados.length > 80) {
-                htmlGerado += `<div class="status" style="padding:10px;">A mostrar os primeiros 80 resultados de ${resultados.length}. Continue a digitar para filtrar melhor.</div>`;
+            if (resultados.length > 100) {
+                htmlGerado += `<div class="status" style="padding:10px;">A mostrar 100 de ${resultados.length} resultados.</div>`;
             }
             
             container.innerHTML = htmlGerado;
@@ -131,10 +138,7 @@
         }
     }
 
-    // Ativa a busca dinâmica em tempo real
     document.getElementById('search-input').addEventListener('input', buscarMusica);
-
-    // Inicia o carregamento assim que a página abre
     window.onload = carregarCatalogoTXT;
 </script>
 
