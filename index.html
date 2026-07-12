@@ -6,22 +6,24 @@
     <title>KARAOKE DULETATA</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* ... Mantém o CSS anterior ... */
         * { box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
         body { background-color: #0f172a; color: #f8fafc; margin: 0; padding: 15px; display: flex; justify-content: center; }
         .container { width: 100%; max-width: 600px; }
         .header { text-align: center; margin-bottom: 20px; }
         .logo { font-size: 32px; font-weight: 800; color: #f59e0b; text-transform: uppercase; }
+        
         .tabs { display: flex; gap: 10px; margin-bottom: 15px; }
         .tab-btn { flex: 1; padding: 10px; background: #1e293b; color: #94a3b8; border-radius: 8px; border: 2px solid transparent; cursor: pointer; text-align: center; }
         .tab-btn.active { border-color: #f59e0b; color: #fff; background: #334155; }
+        
         .search-box { background: #1e293b; padding: 12px; border-radius: 12px; margin-bottom: 15px; }
-        .input-search { width: 100%; padding: 12px; border: 2px solid #334155; border-radius: 8px; background: #0f172a; color: #fff; }
+        .input-search { width: 100%; padding: 12px; border: 2px solid #334155; border-radius: 8px; background: #0f172a; color: #fff; outline: none;}
+        
         .result-item { background: #1e293b; padding: 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; margin-bottom: 8px; border-left: 4px solid #f59e0b; }
         .music-info { flex: 1; }
         .star-btn { font-size: 20px; color: #64748b; cursor: pointer; padding: 5px; }
         .star-btn.active { color: #f59e0b; }
-        .whatsapp-btn { background-color: #25d366; color: white; padding: 8px 12px; border-radius: 6px; text-decoration: none; }
+        .whatsapp-btn { background-color: #25d366; color: white; padding: 10px 14px; border-radius: 6px; text-decoration: none; font-size: 18px; }
     </style>
 </head>
 <body>
@@ -30,7 +32,7 @@
     <div style="background: #1e293b; padding: 30px; border-radius: 12px; text-align: center;">
         <h2>Quem está acessando?</h2>
         <input type="text" id="user-name" style="padding: 10px; border-radius: 5px; width: 250px;">
-        <button onclick="definirUsuario()" style="padding: 10px 20px; background: #f59e0b; border: none; border-radius: 5px; cursor: pointer;">Entrar</button>
+        <button onclick="definirUsuario()" style="padding: 10px 20px; background: #f59e0b; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">Entrar</button>
     </div>
 </div>
 
@@ -53,10 +55,10 @@
 </div>
 
 <script>
-    const API_URL = "https://sheetdb.io/api/v1/xv2c48l7hux45";
+    const API_URL = "https://sheetdb.io/api/v1/4nlguz2v5wx08";
     let currentUser = "";
     let catalogoMusicas = [];
-    let meusFavoritos = []; // Lista de números de músicas favoritaras do usuário logado
+    let meusFavoritos = []; 
     let viewMode = 'todas';
 
     async function definirUsuario() {
@@ -70,7 +72,6 @@
         }
     }
 
-    // Busca apenas os favoritos do usuário na planilha
     async function carregarFavoritos() {
         try {
             const url = `${API_URL}/search?Usuario=${encodeURIComponent(currentUser)}`;
@@ -86,11 +87,9 @@
         const isFav = meusFavoritos.includes(numero);
 
         if (isFav) {
-            // Remover da Planilha
             await fetch(`${API_URL}/Usuario/${encodeURIComponent(currentUser)}/MusicaNumero/${numero}`, { method: 'DELETE' });
             meusFavoritos = meusFavoritos.filter(n => n !== numero);
         } else {
-            // Adicionar na Planilha
             await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -128,6 +127,8 @@
         container.innerHTML = "";
         lista.slice(0, 100).forEach(m => {
             const isFav = meusFavoritos.includes(m.numero);
+            const msg = encodeURIComponent(`Olá! Gostaria de cantar a música: ${m.numero} - ${m.item}`);
+            
             container.innerHTML += `
                 <div class="result-item">
                     <div class="star-btn ${isFav ? 'active' : ''}" onclick="toggleFavorito('${m.numero}')">
@@ -137,20 +138,26 @@
                         <div>${m.item}</div>
                         <div style="color: #f59e0b; font-weight:bold;">Nº ${m.numero}</div>
                     </div>
+                    <a href="https://api.whatsapp.com/send?text=${msg}" target="_blank" class="whatsapp-btn">
+                        <i class="fab fa-whatsapp"></i>
+                    </a>
                 </div>
             `;
         });
     }
 
-    // Carrega catálogo local (TXT)
     async function carregarCatalogoTXT() {
-        const resposta = await fetch('CATÁLOGO DE MÚSICAS.txt');
-        const texto = await resposta.text();
-        const linhas = texto.split(/\r?\n/);
-        linhas.forEach(linha => {
-            let match = linha.match(/^(\d+)\s+(.+)$/);
-            if (match) catalogoMusicas.push({ numero: match[1], item: match[2].trim() });
-        });
+        try {
+            const resposta = await fetch('CATÁLOGO DE MÚSICAS.txt');
+            const texto = await resposta.text();
+            const linhas = texto.split(/\r?\n/);
+            linhas.forEach(linha => {
+                let match = linha.match(/^(\d+)\s+(.+)$/);
+                if (match) catalogoMusicas.push({ numero: match[1], item: match[2].trim() });
+            });
+        } catch(e) {
+            console.error("Erro ao carregar o arquivo de músicas");
+        }
     }
 
     window.onload = carregarCatalogoTXT;
