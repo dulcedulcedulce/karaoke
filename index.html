@@ -17,13 +17,17 @@
         .tab-btn.active { border-color: #f59e0b; color: #fff; background: #334155; }
         
         .search-box { background: #1e293b; padding: 12px; border-radius: 12px; margin-bottom: 15px; }
-        .input-search { width: 100%; padding: 12px; border: 2px solid #334155; border-radius: 8px; background: #0f172a; color: #fff; outline: none;}
+        .input-search { width: 100%; padding: 12px; border: 2px solid #334155; border-radius: 8px; background: #0f172a; color: #fff; outline: none; }
         
-        .result-item { background: #1e293b; padding: 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; margin-bottom: 8px; border-left: 4px solid #f59e0b; }
-        .music-info { flex: 1; }
-        .star-btn { font-size: 20px; color: #64748b; cursor: pointer; padding: 5px; }
+        .result-item { background: #1e293b; padding: 12px; border-radius: 8px; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; border-left: 4px solid #f59e0b; }
+        .music-info { flex: 1; min-width: 0; }
+        .action-btn { font-size: 17px; color: #64748b; cursor: pointer; padding: 5px; min-width: 30px; text-align: center; }
         .star-btn.active { color: #f59e0b; }
-        .whatsapp-btn { background-color: #25d366; color: white; padding: 10px 14px; border-radius: 6px; text-decoration: none; font-size: 18px; }
+        .mic-btn.active { color: #3b82f6; }
+        .bad-btn.active { color: #ef4444; }
+        .good-btn.active { color: #22c55e; }
+        .counter { font-size: 10px; font-weight: bold; display: block; margin-top: -2px; }
+        .whatsapp-btn { background-color: #25d366; color: white; padding: 8px 12px; border-radius: 6px; text-decoration: none; font-size: 16px; }
     </style>
 </head>
 <body>
@@ -55,70 +59,71 @@
 </div>
 
 <script>
-    const API_URL = "https://sheetdb.io/api/v1/6bove4nugu0ra";
-    let currentUser = "";
-    let catalogoMusicas = [];
-    let meusFavoritos = []; 
-    let viewMode = 'todas';
+    const API_URL = "https://sheetdb.io/api/v1/xv2c48l7hux45";
+    let currentUser = "", catalogoMusicas = [], meusFavoritos = [], minhasCantadas = {}, meusRuins = [], meusBons = [], viewMode = 'todas';
 
     async function definirUsuario() {
-        const name = document.getElementById('user-name').value.trim();
-        if (name) {
-            currentUser = name;
-            document.getElementById('user-display').textContent = `Olá, ${name}!`;
+        currentUser = document.getElementById('user-name').value.trim();
+        if (currentUser) {
+            document.getElementById('user-display').textContent = `Olá, ${currentUser}!`;
             document.getElementById('user-modal').style.display = 'none';
-            await carregarFavoritos();
+            await carregarDadosPlanilha();
             filtrarMusicas();
         }
     }
 
-    async function carregarFavoritos() {
+    async function carregarDadosPlanilha() {
         try {
-            const url = `${API_URL}/search?Usuario=${encodeURIComponent(currentUser)}`;
-            const response = await fetch(url);
+            const response = await fetch(`${API_URL}/search?Usuario=${encodeURIComponent(currentUser)}`);
             const data = await response.json();
-            meusFavoritos = data.map(item => item.MusicaNumero);
-        } catch (e) {
-            console.error("Erro ao carregar favoritos:", e);
-        }
+            meusFavoritos = data.filter(i => i.Tipo === 'Favorita').map(i => i.MusicaNumero);
+            meusRuins = data.filter(i => i.Tipo === 'Ruim').map(i => i.MusicaNumero);
+            meusBons = data.filter(i => i.Tipo === 'Boa').map(i => i.MusicaNumero);
+            minhasCantadas = {};
+            data.filter(i => i.Tipo === 'Cantada').forEach(i => minhasCantadas[i.MusicaNumero] = parseInt(i.Contagem) || 1);
+        } catch(e) { console.error("Erro na API"); }
     }
 
-    async function toggleFavorito(numero) {
-        const isFav = meusFavoritos.includes(numero);
+    async function toggleStatus(numero, tipo, isAdd) {
+        if (isAdd) {
+            await fetch(API_URL, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ data: [{ "Usuario": currentUser, "MusicaNumero": numero, "Tipo": tipo, "Contagem": 0 }] })
+            });
+        } else {
+            await fetch(`${API_URL}/Usuario/${encodeURIComponent(currentUser)}/MusicaNumero/${numero}/Tipo/${tipo}`, { method: 'DELETE' });
+        }
+        await carregarDadosPlanilha();
+        filtrarMusicas();
+    }
 
-        if (isFav) {
-            await fetch(`${API_URL}/Usuario/${encodeURIComponent(currentUser)}/MusicaNumero/${numero}`, { method: 'DELETE' });
-            meusFavoritos = meusFavoritos.filter(n => n !== numero);
+    async function registrarCantada(numero) {
+        const jaCantada = minhasCantadas[numero];
+        if (jaCantada) {
+            await fetch(`${API_URL}/Usuario/${encodeURIComponent(currentUser)}/MusicaNumero/${numero}/Tipo/Cantada`, {
+                method: 'PATCH',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ "Contagem": jaCantada + 1 })
+            });
         } else {
             await fetch(API_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ data: [{ "Usuario": currentUser, "MusicaNumero": numero }] })
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ data: [{ "Usuario": currentUser, "MusicaNumero": numero, "Tipo": "Cantada", "Contagem": 1 }] })
             });
-            meusFavoritos.push(numero);
         }
+        await carregarDadosPlanilha();
         filtrarMusicas();
     }
 
-    function mudarTab(mode) {
-        viewMode = mode;
-        document.getElementById('tab-all').classList.toggle('active', mode === 'todas');
-        document.getElementById('tab-fav').classList.toggle('active', mode === 'favoritas');
-        filtrarMusicas();
-    }
-
+    function mudarTab(mode) { viewMode = mode; filtrarMusicas(); }
+    
     function filtrarMusicas() {
         const query = document.getElementById('search-input').value.toLowerCase();
         let lista = catalogoMusicas;
-
-        if (viewMode === 'favoritas') {
-            lista = lista.filter(m => meusFavoritos.includes(m.numero));
-        }
-
-        if (query) {
-            lista = lista.filter(m => m.item.toLowerCase().includes(query) || m.numero.includes(query));
-        }
-
+        if (viewMode === 'favoritas') lista = lista.filter(m => meusFavoritos.includes(m.numero));
+        if (query) lista = lista.filter(m => m.item.toLowerCase().includes(query) || m.numero.includes(query));
         renderizar(lista);
     }
 
@@ -127,16 +132,29 @@
         container.innerHTML = "";
         lista.slice(0, 100).forEach(m => {
             const isFav = meusFavoritos.includes(m.numero);
+            const isRuim = meusRuins.includes(m.numero);
+            const isBoa = meusBons.includes(m.numero);
+            const contagem = minhasCantadas[m.numero] || 0;
             const msg = encodeURIComponent(`Olá! Gostaria de cantar a música: ${m.numero} - ${m.item}`);
             
             container.innerHTML += `
                 <div class="result-item">
-                    <div class="star-btn ${isFav ? 'active' : ''}" onclick="toggleFavorito('${m.numero}')">
+                    <div class="action-btn star-btn ${isFav ? 'active' : ''}" onclick="toggleStatus('${m.numero}', 'Favorita', ${!isFav})">
                         <i class="fa-${isFav ? 'solid' : 'regular'} fa-star"></i>
                     </div>
+                    <div class="action-btn good-btn ${isBoa ? 'active' : ''}" onclick="toggleStatus('${m.numero}', 'Boa', ${!isBoa})">
+                        <i class="fa-solid fa-thumbs-up"></i>
+                    </div>
+                    <div class="action-btn bad-btn ${isRuim ? 'active' : ''}" onclick="toggleStatus('${m.numero}', 'Ruim', ${!isRuim})">
+                        <i class="fa-solid fa-thumbs-down"></i>
+                    </div>
+                    <div class="action-btn mic-btn ${contagem > 0 ? 'active' : ''}" onclick="registrarCantada('${m.numero}')">
+                        <i class="fa-solid fa-microphone"></i>
+                        <span class="counter">${contagem > 0 ? contagem : ''}</span>
+                    </div>
                     <div class="music-info">
-                        <div>${m.item}</div>
-                        <div style="color: #f59e0b; font-weight:bold;">Nº ${m.numero}</div>
+                        <div style="font-size: 14px; font-weight: 500;">${m.item}</div>
+                        <div style="color: #f59e0b; font-size: 12px; font-weight:bold;">Nº ${m.numero}</div>
                     </div>
                     <a href="https://api.whatsapp.com/send?text=${msg}" target="_blank" class="whatsapp-btn">
                         <i class="fab fa-whatsapp"></i>
@@ -155,11 +173,9 @@
                 let match = linha.match(/^(\d+)\s+(.+)$/);
                 if (match) catalogoMusicas.push({ numero: match[1], item: match[2].trim() });
             });
-        } catch(e) {
-            console.error("Erro ao carregar o arquivo de músicas");
-        }
+            filtrarMusicas();
+        } catch(e) { console.error("Erro ao carregar catálogo"); }
     }
-
     window.onload = carregarCatalogoTXT;
 </script>
 </body>
