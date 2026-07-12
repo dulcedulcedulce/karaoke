@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Buscador de Músicas</title>
+    <title>KARAOKE DULETATA</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
@@ -36,7 +36,7 @@
 
 <div class="container">
     <div class="header">
-        <div class="logo">Karaokê Party Box</div>
+        <div class="logo">KARAOKE DULETATA</div>
         <div class="subtitle">Catálogo Digital com WhatsApp</div>
     </div>
     
@@ -51,80 +51,15 @@
 </div>
 
 <script>
-    // Configuração do WhatsApp: Deixe "" para o cliente escolher o contato na hora.//5511999999999
     const NUMERO_WHATSAPP = ""; 
-
     let catalogoMusicas = [];
 
-    async function carregarCatalogoTXT() {
-        const statusLoad = document.getElementById('status-load');
-        const searchInput = document.getElementById('search-input');
+    // Função única para renderizar resultados
+    function renderizarResultados(lista, termoPesquisa = "") {
         const container = document.getElementById('results-container');
-
-        try {
-            const resposta = await fetch('CATÁLOGO DE MÚSICAS.txt');
-            if (!resposta.ok) throw new Error("Ficheiro não encontrado");
-            
-            const textoCompleto = await resposta.text();
-            const linhas = textoCompleto.split(/\r?\n/);
-            
-            for (let i = 0; i < linhas.length; i++) {
-                let linhaAtual = linhas[i].trim();
-                if (linhaAtual === "" || linhaAtual.includes("CATÁLOGO DE MÚSICAS")) continue;
-
-                // Captura se estiver no formato: "12222 ZÉ RAMALHO - MISTÉRIOS..."
-                let regexMesmaLinha = /^(\d+)\s+(.+)$/;
-                let match = linhaAtual.match(regexMesmaLinha);
-
-                if (match) {
-                    catalogoMusicas.push({ 
-                        numero: match[1], 
-                        item: match[2].replace(/^["']|["']$/g, '').trim() 
-                    });
-                } 
-                // Captura se o número estiver em uma linha e a música na linha de baixo
-                else if (/^\d+$/.test(linhaAtual)) {
-                    let numero = linhaAtual;
-                    let proximaLinha = (linhas[i + 1] || "").trim();
-                    
-                    if (proximaLinha !== "" && !/^\d+$/.test(proximaLinha)) {
-                        catalogoMusicas.push({ 
-                            numero: numero, 
-                            item: proximaLinha.replace(/^["']|["']$/g, '').trim() 
-                        });
-                        i++; 
-                    }
-                }
-            }
-            
-            statusLoad.textContent = `${catalogoMusicas.length} músicas carregadas com sucesso!`;
-            searchInput.disabled = false;
-            searchInput.placeholder = "Pesquise por artista, música ou número...";
-            container.innerHTML = `<div class="no-results">Digite acima para começar a procurar!</div>`;
-            searchInput.focus();
-        } catch (erro) {
-            statusLoad.textContent = "Erro ao carregar o catálogo.";
-            container.innerHTML = `<div class="no-results" style="color:#ef4444;">Erro: Certifique-se de que o ficheiro 'CATÁLOGO DE MÚSICAS.txt' está na mesma pasta.</div>`;
-            console.error(erro);
-        }
-    }
-
-    function buscarMusica() {
-        const input = document.getElementById('search-input').value.trim().toLowerCase();
-        const container = document.getElementById('results-container');
-        
         container.innerHTML = "";
 
-        if (input === "") {
-            container.innerHTML = `<div class="no-results">Digite algo para começar a procurar!</div>`;
-            return;
-        }
-
-        const resultados = catalogoMusicas.filter(musica => 
-            musica.item.toLowerCase().includes(input) || musica.numero === input
-        );
-
-        const limiteResultados = resultados.slice(0, 100);
+        const limiteResultados = lista.slice(0, 100);
 
         if (limiteResultados.length > 0) {
             let htmlGerado = "";
@@ -148,14 +83,84 @@
                 `;
             });
             
-            if (resultados.length > 100) {
-                htmlGerado += `<div class="status" style="padding:10px;">A mostrar 100 de ${resultados.length} resultados.</div>`;
+            if (lista.length > 100) {
+                htmlGerado += `<div class="status" style="padding:10px;">A mostrar 100 de ${lista.length} resultados.</div>`;
             }
             
             container.innerHTML = htmlGerado;
         } else {
-            container.innerHTML = `<div class="no-results">Nenhuma música encontrada para "${document.getElementById('search-input').value}".</div>`;
+            container.innerHTML = `<div class="no-results">Nenhuma música encontrada para "${termoPesquisa}".</div>`;
         }
+    }
+
+    async function carregarCatalogoTXT() {
+        const statusLoad = document.getElementById('status-load');
+        const searchInput = document.getElementById('search-input');
+
+        try {
+            const resposta = await fetch('CATÁLOGO DE MÚSICAS.txt');
+            if (!resposta.ok) throw new Error("Ficheiro não encontrado");
+            
+            const textoCompleto = await resposta.text();
+            const linhas = textoCompleto.split(/\r?\n/);
+            
+            for (let i = 0; i < linhas.length; i++) {
+                let linhaAtual = linhas[i].trim();
+                if (linhaAtual === "" || linhaAtual.includes("CATÁLOGO DE MÚSICAS")) continue;
+
+                let regexMesmaLinha = /^(\d+)\s+(.+)$/;
+                let match = linhaAtual.match(regexMesmaLinha);
+
+                if (match) {
+                    catalogoMusicas.push({ 
+                        numero: match[1], 
+                        item: match[2].replace(/^["']|["']$/g, '').trim() 
+                    });
+                } 
+                else if (/^\d+$/.test(linhaAtual)) {
+                    let numero = linhaAtual;
+                    let proximaLinha = (linhas[i + 1] || "").trim();
+                    
+                    if (proximaLinha !== "" && !/^\d+$/.test(proximaLinha)) {
+                        catalogoMusicas.push({ 
+                            numero: numero, 
+                            item: proximaLinha.replace(/^["']|["']$/g, '').trim() 
+                        });
+                        i++; 
+                    }
+                }
+            }
+            
+            // Ordena alfabeticamente
+            catalogoMusicas.sort((a, b) => a.item.localeCompare(b.item, 'pt-BR'));
+            
+            statusLoad.textContent = `${catalogoMusicas.length} músicas carregadas!`;
+            searchInput.disabled = false;
+            searchInput.placeholder = "Pesquise por artista, música ou número...";
+            
+            // Exibe a lista completa (limitada a 100) logo ao carregar
+            renderizarResultados(catalogoMusicas);
+            
+        } catch (erro) {
+            statusLoad.textContent = "Erro ao carregar o catálogo.";
+            document.getElementById('results-container').innerHTML = `<div class="no-results" style="color:#ef4444;">Erro: Certifique-se de que o ficheiro 'CATÁLOGO DE MÚSICAS.txt' está na mesma pasta.</div>`;
+            console.error(erro);
+        }
+    }
+
+    function buscarMusica() {
+        const input = document.getElementById('search-input').value.trim().toLowerCase();
+        
+        if (input === "") {
+            renderizarResultados(catalogoMusicas); // Se apagar o texto, volta a mostrar tudo
+            return;
+        }
+
+        const resultados = catalogoMusicas.filter(musica => 
+            musica.item.toLowerCase().includes(input) || musica.numero === input
+        );
+
+        renderizarResultados(resultados, input);
     }
 
     document.getElementById('search-input').addEventListener('input', buscarMusica);
